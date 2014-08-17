@@ -8,6 +8,7 @@ import android.net.NetworkInfo;
 import android.os.Bundle;
 import android.text.method.ScrollingMovementMethod;
 import android.util.Base64;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -38,6 +39,8 @@ public class MyActivity extends Activity {
 
     List<Site> siteList;
 
+    RequestQueue requestQueue;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -53,6 +56,9 @@ public class MyActivity extends Activity {
 
         pb = (ProgressBar) findViewById(R.id.progressBar);
         pb.setVisibility(View.INVISIBLE);
+
+
+        requestQueue = Volley.newRequestQueue(this);
 
     }
 
@@ -81,97 +87,52 @@ public class MyActivity extends Activity {
     }
 
 
+
     private void requestData(String uri) {
 
-        Response.Listener<String> listener = null;
-        Response.ErrorListener errorListener = null;
         StringRequest request = new StringRequest(
                 Request.Method.GET,
                 uri,
-                listener,
-                errorListener) {
+                new Response.Listener<String>() {
+
+                    @Override
+                    public void onResponse(String response) {
+                        Log.d("HTTP Response", response);
+                        siteList = SiteJSONParser.parseFeed(response);
+                        updateDisplay();
+                    }
+                },
+                new Response.ErrorListener() {
+
+                    @Override
+                    public void onErrorResponse(VolleyError error) {
+                        if (error.networkResponse != null) {
+                            Toast.makeText(MyActivity.this, error.getMessage(), Toast.LENGTH_LONG).show();
+                        }
+                    }
+                }) {
 
             @Override
             public Map<String, String> getHeaders() throws AuthFailureError {
                 return createBasicAuthHeader(username,pwd);
             }
-
-            private Map<String, String> createBasicAuthHeader(String username, String password) {
-                Map<String, String> headerMap = new HashMap<String, String>();
-
-                String credentials = username + ":" + password;
-                String base64EncodedCredentials =
-                        Base64.encodeToString(credentials.getBytes(), Base64.NO_WRAP);
-                headerMap.put("Authorization", "Basic " + base64EncodedCredentials);
-
-                return headerMap;
-            }
         };
 
-
-        listener = new Response.Listener<String>(){
-            @Override
-            public void onResponse(String response) {
-                siteList = SiteJSONParser.parseFeed(response);
-                updateDisplay();
-            }
-        };
-
-         errorListener = new Response.ErrorListener() {
-            @Override
-            public void onErrorResponse(VolleyError error) {
-                if (error.networkResponse != null) {
-                    Toast.makeText(MyActivity.this, error.getMessage(), Toast.LENGTH_LONG).show();
-                }
-            }
-        };
-        RequestQueue requestQueue = Volley.newRequestQueue(this);
         requestQueue.add(request);
     }
 
+    private Map<String, String> createBasicAuthHeader(String username, String password) {
+        Map<String, String> headerMap = new HashMap<String, String>();
 
-               /* new Response.Listener<String>() {
+        String credentials = username + ":" + password;
+        String base64EncodedCredentials =
+                Base64.encodeToString(credentials.getBytes(), Base64.NO_WRAP);
+        headerMap.put("Authorization", "Basic " + base64EncodedCredentials);
+        Log.d("HTTP Response",base64EncodedCredentials);
 
-                    @Override
-                    public void onResponse(String response) {
-                        siteList = SiteJSONParser.parseFeed(response);
-                        updateDisplay();
-                    }
-                },
-
-                new Response.ErrorListener() {
-                    @Override
-                    public void onErrorResponse(VolleyError volleyError) {
-                        Toast.makeText(MyActivity.this, volleyError.getMessage(), Toast.LENGTH_LONG).show();
-                    }
-
-
-                });*/
-
-
-
-
-
-    /*public class MyStringRequest extends StringRequest{
-        private Map<String, String> params = new HashMap<String, String>();
-
-        public MyStringRequest(int method, String url, Response.Listener<String> listener, Response.ErrorListener errorListener) {
-            super(method, url, listener, errorListener);
-        }
-
-        public Map<String, String> getHeaders() throws AuthFailureError {
-            HashMap<String, String> params = new HashMap<String, String>();
-            String creds = String.format("%s:%s","demouser1","demopass1");
-            String auth = "Basic " + Base64.encodeToString(creds.getBytes(), Base64.DEFAULT);
-            params.put("Authorization", auth);
-            return params;
-        }
-
-        public void setHeader(String title, String content) {
-            params.put(title, content);
-        }
+        return headerMap;
     }
-*/
+
 
     protected void updateDisplay(){
         if(siteList != null){
